@@ -573,13 +573,13 @@ class BandPlanView(ttk.Frame):
             xs = x0 + (s - lo) / (hi - lo) * (x1 - x0)
             xe = x0 + (e - lo) / (hi - lo) * (x1 - x0)
             self.canvas.create_rectangle(xs, y0, xe, y1, fill=colors[idx % len(colors)], outline="")
-            self.canvas.create_text((xs+xe)/2, (y0+y1)/2, text=label, font=("Arial", 12))
+            self.canvas.create_text((xs+xe)/2, (y0+y1)/2, text=label, font=("Arial", 10))
         # Ticks
         for tick in range(int(lo*10), int(hi*10)+1, max(1, int((hi-lo)*10//10))):
             f = tick/10.0
             x = x0 + (f - lo)/(hi - lo) * (x1 - x0)
             self.canvas.create_line(x, y1, x, y1+6, fill="#555")
-            self.canvas.create_text(x, y1+18, text=f"{f:.1f}", font=("Arial", 10))
+            self.canvas.create_text(x, y1+18, text=f"{f:.1f}", font=("Arial", 8))
         # Cursor line for current frequency
         if mhz is not None and lo <= mhz <= hi:
             xf = x0 + (mhz - lo) / (hi - lo) * (x1 - x0)
@@ -604,7 +604,7 @@ class GUIApp:
         self.cfg = cfg
         self.root = tk.Tk()
         self.root.title("pi-rig-freq — Live Frequency + Band Plan")
-        self.root.geometry("1000x320")
+        self.root.geometry("480x320+0+0")
         self.root.configure(bg="white")
         self._after_id = None
         self._closing = False
@@ -613,13 +613,13 @@ class GUIApp:
         top = ttk.Frame(self.root, padding=12)
         top.pack(fill="x")
         self.freq_var = tk.StringVar(value="—")
-        ttk.Label(top, text="Frequency:", font=("Arial", 14)).pack(side="left")
-        ttk.Label(top, textvariable=self.freq_var, font=("Consolas", 20)).pack(side="left", padx=10)
+        ttk.Label(top, text="Frequency:", font=("Arial", 12)).pack(side="left")
+        ttk.Label(top, textvariable=self.freq_var, font=("Consolas", 14)).pack(side="left", padx=10)
         self.band_var = tk.StringVar(value="")
-        ttk.Label(top, textvariable=self.band_var, font=("Arial", 12)).pack(side="left", padx=12)
+        ttk.Label(top, textvariable=self.band_var, font=("Arial", 10)).pack(side="left", padx=12)
 
         # Band plan view
-        self.plan = BandPlanView(self.root, width=980, height=220)
+        self.plan = BandPlanView(self.root, width=460, height=200)
         self.plan.pack(fill="both", expand=True, padx=10, pady=(0,10))
 
         # Footer note
