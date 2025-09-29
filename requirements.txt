@@ -1,0 +1,3 @@
+pyserial
+pyyaml
+windows-curses  # Windows-only; provides the TUI on Windows

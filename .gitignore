@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+*.jsonl
+*.env
+.env*
+
+# Virtual envs
+.venv/
+venv/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build/packaging
+dist/
+build/
+*.egg-info/
+
+# Local config/logs (kept outside repo anyway)
+.pi-rig-freq.log.jsonl
