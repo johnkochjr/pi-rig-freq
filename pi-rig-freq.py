@@ -205,6 +205,9 @@ class Backend:
         """Return frequency in Hz, or None if not available."""
         raise NotImplementedError
 
+    def get_mode(self) -> Optional[str]:
+        return None
+
 class RigctldBackend(Backend):
     """Hamlib rigctld TCP.
     Uses the documented 'f' (get freq) command and expects a numeric response.
@@ -252,6 +255,16 @@ class RigctldBackend(Backend):
             return float(token)
         except Exception:
             return None
+
+    def get_mode(self) -> Optional[str]:
+        try:
+            resp = self._send("m")
+            if resp.startswith("RPRT"):
+                return None
+            return resp.split()[0].upper()
+        except Exception:
+            return None
+
 
 class HRDBackend(Backend):
     """Ham Radio Deluxe IP Server v5 (binary framed) — per your C# implementation.
@@ -334,6 +347,14 @@ class HRDBackend(Backend):
             return float(token) if token else None
         except Exception:
             return None
+    
+    def get_mode(self) -> Optional[str]:
+        try:
+            reply = self._send_command_v5("get mode", prepend_context=False)
+            m = reply.strip()
+            return m or None
+        except Exception:
+            return None
 
 class USBBackend(Backend):
     """Direct USB serial CAT using pyserial."""
@@ -342,7 +363,7 @@ class USBBackend(Backend):
         self.baud = baud
         self.cmd = cmd
         self.timeout = timeout
-        self.ser: Optional[serial.Serial] = None if serial else None
+        # self.ser: Optional[serial.Serial] = None if serial else None
 
     def open(self):
         if serial is None:
@@ -385,6 +406,7 @@ class Poller(threading.Thread):
         self.dt = 1.0 / max(0.1, poll_hz)
         self.out_q = out_q
         self._stop = threading.Event()
+        self._i = 0
 
     def run(self):
         try:
@@ -397,10 +419,19 @@ class Poller(threading.Thread):
             while not self._stop.is_set():
                 hz = self.backend.get_frequency_hz()
                 ts = time.time()
+
                 if hz is not None:
                     self.out_q.put({"type": "freq", "ts": ts, "hz": hz})
                 else:
                     self.out_q.put({"type": "warn", "msg": "no data"})
+                if (self._i % 10) == 0:
+                    try:
+                        mode = self.backend.get_mode()
+                        if mode is not None:
+                            self.out_q.put({"type": "mode", "ts": ts, "mode": mode})
+                    except Exception:
+                        pass
+                self._i += 1
                 time.sleep(self.dt)
         finally:
             self.backend.close()
@@ -417,6 +448,7 @@ class TUI:
         self.poller: Optional[Poller] = None
         self.latest_hz: Optional[float] = None
         self.log_fp = None
+        self.latest_mode: Optional[str] = None
 
     def _open_poller(self):
         if self.poller:
@@ -461,6 +493,9 @@ class TUI:
                     if ev.get("type") == "freq":
                         self.latest_hz = ev["hz"]
                         self._write_log(ev)
+                    # elif ev.get("type") == "mode":
+                    #     self.latest_mode = ev["mode"]
+                    #     self._write_log(ev)
                     elif ev.get("type") in ("status", "warn", "error"):
                         self._write_log(ev)
             except queue.Empty:
@@ -482,6 +517,7 @@ class TUI:
                 band = band_for_mhz(mhz)
                 disp = f"{mhz:0.6f} MHz ({int(self.latest_hz)} Hz)  [{band or '—'}]"
             stdscr.addstr(6, 0, f"Frequency: {disp}")
+            stdscr.addstr(7, 0, f"Mode: {self.latest_mode or '—'}")
 
             stdscr.addstr(8, 0, "Keys: h=help  m=cycle mode  e=edit IP/port  u=edit serial  c=edit CAT  s=save  l=toggle log  g=open GUI  q=quit")
 
@@ -610,7 +646,8 @@ class GUIApp:
         self.root.configure(bg="white")
         self._after_id = None
         self._closing = False
-
+        self.mode_var = tk.StringVar(value="")
+        
         # Header
         top = ttk.Frame(self.root, padding=12)
         top.pack(fill="x")
@@ -619,6 +656,7 @@ class GUIApp:
         ttk.Label(top, textvariable=self.freq_var, font=("Consolas", 14)).pack(side="left", padx=10)
         self.band_var = tk.StringVar(value="")
         ttk.Label(top, textvariable=self.band_var, font=("Arial", 10)).pack(side="left", padx=12)
+        ttk.Label(top, textvariable=self.mode_var, font=("Arial", 12)).pack(side="left", padx=12)
 
         # Band plan view
         self.plan = BandPlanView(self.root, width=460, height=200)
@@ -657,6 +695,9 @@ class GUIApp:
                     b = band_for_mhz(mhz)
                     self.band_var.set(f"[{b}]" if b else "")
                     self.plan.update_freq(mhz)
+                elif ev.get("type") == "mode":                   # NEW
+                    self.mode_var.set(f"Mode: {ev['mode']}")
+
         except queue.Empty:
             pass
         except tk.TclError:
