@@ -603,6 +603,8 @@ class GUIApp:
             raise RuntimeError("Tkinter not available. On Pi: sudo apt-get install -y python3-tk")
         self.cfg = cfg
         self.root = tk.Tk()
+        self.root.attributes("-fullscreen", True)
+        self.root.bind("<Escape>", lambda e: self.root.attributes("-fullscreen", False))
         self.root.title("pi-rig-freq — Live Frequency + Band Plan")
         self.root.geometry("480x320+0+0")
         self.root.configure(bg="white")
